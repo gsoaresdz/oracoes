@@ -22,11 +22,14 @@ Abra o endereço mostrado e entre com `demo@oracoes.local` / `demo`. Nesse modo 
 6. Rode `npm run seed` para gravar as orações importadas.
 7. `npm run dev` para usar o app com os dados reais.
 
-A chave `service_role` só é usada por `npm run seed`. Ela ignora todas as regras de acesso, então nunca deve
-ter o prefixo `VITE_` nem ir para a Vercel. Depois da importação, pode removê-la do `.env.local`.
+### O que `npm run seed` faz
 
-`npm run seed` recusa rodar se a conta já tiver dados, porque sobrescreveria o que foi editado no app.
-Para forçar: `npm run seed -- --force`.
+Entra com o seu e-mail e senha (`SEED_USER_EMAIL` e `SEED_USER_PASSWORD`), sem precisar da `service_role`, e
+**só adiciona o que falta**: orações com título novo e dias da semana ainda sem cadastro. O que você editou no
+app é preservado. Depois de rodar, remova as duas variáveis do `.env.local`.
+
+- `npm run seed -- --dry-run` mostra o que seria feito, sem gravar nada.
+- `npm run seed -- --force` sobrescreve os textos e recria a base e os dias, **perdendo edições feitas no app**.
 
 ## Publicar na Vercel
 
@@ -41,6 +44,6 @@ npm run test:e2e    # navegador, no modo demonstração (desktop e celular)
 
 ## Importação do Notion
 
-`npm run import:notion` gera `data/seed.json` a partir de `data/notion-raw.json`. Com `-- --refresh`, baixa de
-novo as páginas, que precisam estar publicadas. Para incluir outros dias, acrescente as páginas em `PAGES`, em
-`scripts/import-notion.mjs`, e ajuste as contagens em `validateSeed`. Só leitura: nada é alterado no Notion.
+`npm run import:notion` gera `data/seed.json` a partir de `data/notion-raw.json`. Só baixa as páginas que faltam
+no arquivo, e com `-- --refresh` baixa todas de novo; elas precisam estar publicadas. A lista fica em `PAGES`, em
+`scripts/lib/notion-extract.mjs`, e as contagens esperadas em `validateSeed`. Só leitura: nada é alterado no Notion.

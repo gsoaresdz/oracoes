@@ -1,6 +1,16 @@
 // Converte os blocos brutos do Notion na estrutura do app: base, dias, seções e orações.
 // Mantém só o português e nunca altera as palavras da oração.
 
+export const PAGES = [
+  { id: '30ad975d-5ec5-80ce-9859-f2526f74acfb', weekday: 0 },
+  { id: '30ad975d-5ec5-8043-b5f2-c35b18af7007', weekday: 1 },
+  { id: '30ad975d-5ec5-8070-88cd-ed9847dfa785', weekday: 2 },
+  { id: '30ad975d-5ec5-80fa-89f8-f4e285cd47a9', weekday: 3 },
+  { id: '30ad975d-5ec5-8085-b948-fd5c18c29568', weekday: 4 },
+  { id: '30ad975d-5ec5-8056-bd38-ca1d90a7fa4d', weekday: 5 },
+  { id: '30ad975d-5ec5-8013-8c13-dd2304752f51', weekday: 6 },
+];
+
 export const EXCLUDED_HEADINGS = ['Latim', 'Grego', 'Sobre a oração', 'Referências', 'Notas', 'Bibliografia'];
 const PT_HEADING = 'Português';
 const BASE_SECTION = 'Primícias';
@@ -170,15 +180,18 @@ export function validateSeed(seed) {
   const own = (r) => r.sections.filter((s) => !s.isBaseSlot);
   const entries = (r) => own(r).reduce((n, s) => n + s.prayers.length, 0);
 
-  expect('orações únicas', seed.prayers.length, 52);
+  expect('orações únicas', seed.prayers.length, 82);
   expect('entradas na base', seed.base.prayers.length, 12);
-  const [sunday, monday] = seed.routines;
-  expect('entradas próprias no domingo', entries(sunday), 33);
-  expect('seções próprias no domingo', own(sunday).length, 11);
-  expect('entradas próprias na segunda', entries(monday), 22);
-  expect('seções próprias na segunda', own(monday).length, 8);
-  expect('primeira seção do domingo', sunday.sections[0].title, 'Preparação para a Santa Missa');
-  expect('base abre a segunda', monday.sections[0].isBaseSlot, true);
+  expect('dias', seed.routines.length, 7);
+  // Entradas e seções próprias de cada dia, sem contar as 12 da base.
+  const expected = [[33, 11], [22, 8], [22, 8], [20, 8], [18, 7], [20, 8], [20, 7]];
+  seed.routines.forEach((routine, weekday) => {
+    expect(`dia da semana de ${routine.name}`, routine.weekday, weekday);
+    expect(`entradas próprias em ${routine.name}`, entries(routine), expected[weekday][0]);
+    expect(`seções próprias em ${routine.name}`, own(routine).length, expected[weekday][1]);
+    expect(`marcador da base em ${routine.name}`, routine.sections.filter((s) => s.isBaseSlot).length, 1);
+    expect(`posição da base em ${routine.name}`, routine.sections.findIndex((s) => s.isBaseSlot), weekday === 0 ? 1 : 0);
+  });
 
   const titles = new Set(seed.prayers.map((p) => p.title));
   for (const t of [...seed.base.prayers, ...seed.routines.flatMap((r) => r.sections.flatMap((s) => s.prayers))]) {

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
-import { prayersInSection, prayerUsage, sectionTitles } from '../lib/routines';
+import { prayersInSection, sectionTitles, usageLabels } from '../lib/routines';
 import { searchPrayers } from '../lib/search';
 
 export function Library() {
@@ -39,7 +39,7 @@ export function Library() {
       </div>
       <ul className="library">
         {results.map((p) => {
-          const usage = prayerUsage(routines, p.id);
+          const usage = usageLabels(routines, p.id);
           return (
             <li key={p.id}>
               <Link to={`/oracoes/${p.id}`}>

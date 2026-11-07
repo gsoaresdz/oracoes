@@ -47,14 +47,50 @@ test('segunda abre com a base primeiro', async ({ page }) => {
   await expect(page.locator('.prayer')).toHaveCount(34);
 });
 
-test('dia sem rotina mostra a base e permite montar o dia', async ({ page }) => {
+test('todos os dias têm as orações certas', async ({ page }) => {
+  await login(page);
+  const expected = [['Domingo', 45], ['Segunda-feira', 34], ['Terça-feira', 34], ['Quarta-feira', 32], ['Quinta-feira', 30], ['Sexta-feira', 32], ['Sábado', 32]] as const;
+  for (const [weekday, [name, count]] of expected.entries()) {
+    await page.goto(`/dia/${weekday}`);
+    await expect(page.locator('h1')).toHaveText(name);
+    await expect(page.locator('.prayer')).toHaveCount(count);
+    await expect(page.locator('.day-section').filter({ hasText: 'Base de todos os dias' })).toHaveCount(1);
+  }
+});
+
+test('cada dia da semana abre sozinho', async ({ page }) => {
   await login(page, SATURDAY);
+  await expect(page.locator('h1')).toHaveText('Sábado');
+  await expect(page.locator('.prayer')).toHaveCount(32);
+  await expect(page.locator('.prayer', { hasText: 'Pela paz da Igreja' })).toHaveCount(1);
+  await page.clock.setFixedTime(new Date('2026-11-10T12:00:00-03:00'));
+  await page.goto('/');
+  await expect(page.locator('h1')).toHaveText('Terça-feira');
+  await expect(page.locator('.prayer', { hasText: 'Uma Oração Contra a Raiva' })).toHaveCount(1);
+});
+
+test('dia excluído mostra só a base e pode ser montado de novo', async ({ page }) => {
+  await login(page, SATURDAY);
+  await page.getByRole('link', { name: 'Editar este dia' }).click();
+  await page.getByRole('button', { name: 'Excluir este dia' }).click();
+  await page.getByRole('button', { name: 'Sim, excluir' }).click();
   await expect(page.locator('h1')).toHaveText('Sábado');
   await expect(page.locator('.prayer')).toHaveCount(12);
   await expect(page.getByText('Nada mais cadastrado para sábado.')).toBeVisible();
   await page.getByRole('button', { name: 'Montar este dia' }).click();
   await expect(page.locator('h1')).toHaveText('Editar Sábado');
   await expect(page.getByText('Base de todos os dias')).toBeVisible();
+});
+
+test('biblioteca resume o que aparece em todos os dias', async ({ page }) => {
+  await login(page);
+  await page.goto('/oracoes');
+  await expect(page.locator('.eyebrow').first()).toHaveText('82 orações');
+  const pills = (title: string) => page.locator('.library li', { hasText: title }).locator('.pill');
+  await expect(pills('Pai-nosso')).toHaveText(['Todos os dias']);
+  await expect(pills('Fica comigo, Senhor!')).toHaveText(['Todos os dias']);
+  await expect(pills('Ato de abandono (Jeremias)')).toHaveText(['Todos os dias']);
+  await expect(pills('Uma Oração Contra a Raiva')).toHaveText(['Terça-feira']);
 });
 
 test('a oração mostra só o texto em português', async ({ page }) => {
@@ -88,11 +124,21 @@ test('cadastrar oração e colocá-la em dois dias', async ({ page }) => {
   await page.getByLabel('Título').fill('Oração de teste');
   await page.getByLabel('Texto da oração').fill('Senhor, **ouvi-nos**.');
   const placement = page.locator('.placement-row');
-  await placement.filter({ hasText: 'Domingo' }).getByRole('button', { name: 'Noite' }).click();
-  await placement.filter({ hasText: 'Segunda-feira' }).getByRole('button', { name: 'Noite' }).click();
+  await expect(placement).toHaveCount(8);
+  for (const day of ['Domingo', 'Segunda-feira']) {
+    const row = placement.filter({ hasText: day });
+    await row.locator('summary').click();
+    await row.getByRole('button', { name: 'Noite' }).click();
+    await expect(row.locator('.pill')).toHaveText('1 seção');
+  }
   await page.getByRole('button', { name: 'Salvar' }).click();
   await expect(page.locator('h1')).toHaveText('Biblioteca');
   await expect(page.locator('.library li', { hasText: 'Oração de teste' }).locator('.pill')).toHaveText(['Domingo', 'Segunda-feira']);
+  // Ao reabrir, os dias em que ela está já aparecem abertos.
+  await page.locator('.library').getByRole('link', { name: /Oração de teste/ }).click();
+  await expect(page.locator('.placement-row', { hasText: 'Domingo' }).getByRole('button', { name: 'Noite' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.placement-row', { hasText: 'Terça-feira' }).getByRole('button', { name: 'Noite' })).toBeHidden();
+  await page.getByRole('link', { name: 'Cancelar' }).click();
   for (const path of ['/dia/0', '/dia/1']) {
     await page.goto(path);
     const prayer = page.locator('.day-section', { hasText: 'Noite' }).locator('.prayer', { hasText: 'Oração de teste' });

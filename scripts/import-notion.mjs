@@ -1,25 +1,27 @@
 // Lê as páginas publicadas do Notion e gera data/seed.json. Não altera nada no Notion.
 // Uso: node scripts/import-notion.mjs [--refresh]
-// Os blocos brutos ficam em data/notion-raw.json, para reprocessar depois de despublicar as páginas.
+// Os blocos brutos ficam em data/notion-raw.json: só baixa as páginas que faltam, salvo com --refresh.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { buildSeed, parsePage, validateSeed } from './lib/notion-extract.mjs';
+import { buildSeed, PAGES, parsePage, validateSeed } from './lib/notion-extract.mjs';
 
-const PAGES = [
-  { id: '30ad975d-5ec5-80ce-9859-f2526f74acfb', weekday: 0 },
-  { id: '30ad975d-5ec5-8043-b5f2-c35b18af7007', weekday: 1 },
-];
 const RAW = new URL('../data/notion-raw.json', import.meta.url);
 const SEED = new URL('../data/seed.json', import.meta.url);
 const API = 'https://www.notion.so/api/v3/';
 
-async function post(endpoint, body) {
-  const res = await fetch(API + endpoint, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'user-agent': 'oracoes-import/0.1' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`${endpoint}: HTTP ${res.status}`);
-  return res.json();
+async function post(endpoint, body, attempt = 1) {
+  try {
+    const res = await fetch(API + endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'user-agent': 'oracoes-import/0.1' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`${endpoint}: HTTP ${res.status}`);
+    return await res.json();
+  } catch (error) {
+    if (attempt >= 4) throw error;
+    await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+    return post(endpoint, body, attempt + 1);
+  }
 }
 
 const unwrap = (record) => {
@@ -54,13 +56,11 @@ async function fetchPage(pageId) {
 }
 
 const refresh = process.argv.includes('--refresh');
-let raw;
-if (!refresh && existsSync(RAW)) {
-  raw = JSON.parse(readFileSync(RAW, 'utf8'));
-  console.log('Usando data/notion-raw.json (use --refresh para baixar de novo).');
-} else {
-  raw = {};
-  for (const { id } of PAGES) raw[id] = await fetchPage(id);
+const raw = !refresh && existsSync(RAW) ? JSON.parse(readFileSync(RAW, 'utf8')) : {};
+for (const { id } of PAGES) {
+  if (raw[id]) continue;
+  console.log(`Baixando ${id}...`);
+  raw[id] = await fetchPage(id);
   writeFileSync(RAW, JSON.stringify(raw));
 }
 

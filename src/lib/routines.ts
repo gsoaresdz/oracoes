@@ -14,6 +14,16 @@ export function prayerUsage(routines: Routine[], prayerId: string): string[] {
     .map((r) => r.name);
 }
 
+/** Versão curta para a lista: resume quando a oração está em todos os dias. */
+export function usageLabels(routines: Routine[], prayerId: string): string[] {
+  const usage = prayerUsage(routines, prayerId);
+  const base = baseRoutine(routines);
+  if (base && usage.includes(base.name)) return ['Todos os dias'];
+  const days = routines.filter((r) => r.weekday !== null);
+  if (days.length === 7 && days.every((d) => usage.includes(d.name))) return ['Todos os dias'];
+  return usage;
+}
+
 /** Títulos das seções, sem repetição, na ordem em que aparecem. */
 export function sectionTitles(routines: Routine[]): string[] {
   const titles = routines.flatMap((r) => r.sections.filter((s) => !s.is_base_slot).map((s) => s.title));

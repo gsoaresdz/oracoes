@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { buildSeed, parsePage, prayerBody, REMOVED_BLOCKS, segmentsToMarkdown, validateSeed } from '../../scripts/lib/notion-extract.mjs';
+import { buildSeed, PAGES, parsePage, prayerBody, REMOVED_BLOCKS, segmentsToMarkdown, validateSeed } from '../../scripts/lib/notion-extract.mjs';
 import { parseMarkdown } from '../../src/lib/markdown';
 
 const block = (type, text, content) => ({ type, properties: text ? { title: [[text]] } : undefined, content });
@@ -55,8 +55,8 @@ const rawFile = new URL('../../data/notion-raw.json', import.meta.url);
 
 describe.runIf(existsSync(rawFile))('importação real', () => {
   const raw = existsSync(rawFile) ? JSON.parse(readFileSync(rawFile, 'utf8')) : {};
-  const PAGE_IDS = ['30ad975d-5ec5-80ce-9859-f2526f74acfb', '30ad975d-5ec5-8043-b5f2-c35b18af7007'];
-  const days = PAGE_IDS.map((id, weekday) => ({ ...parsePage(id, raw[id]), weekday }));
+  const PAGE_IDS = PAGES.map((p) => p.id);
+  const days = PAGES.map(({ id, weekday }) => ({ ...parsePage(id, raw[id]), weekday }));
   const seed = buildSeed(days);
   const body = (title) => seed.prayers.find((p) => p.title === title).body;
 
@@ -99,11 +99,18 @@ describe.runIf(existsSync(rawFile))('importação real', () => {
     expect(body('Ao deitar-se')).toContain('Oremos:');
   });
 
+  it('as Primícias são as mesmas em todos os dias', () => {
+    for (const day of days) {
+      const titles = day.sections.find((s) => s.title === 'Primícias').prayers.map((p) => p.title);
+      expect(titles.filter((t) => t !== 'Uma Oração Para Manter o Foco'), day.name).toEqual(seed.base.prayers);
+    }
+  });
+
   it('coloca as Primícias na base e preserva a ordem de cada dia', () => {
-    const [sunday, monday] = seed.routines;
+    const [sunday, ...others] = seed.routines;
+    for (const day of others) expect(day.sections[0].isBaseSlot, day.name).toBe(true);
     expect(sunday.sections.map((s) => s.isBaseSlot)).toEqual([false, true, ...Array(10).fill(false)]);
     expect(sunday.sections[2]).toMatchObject({ title: 'Primícias de domingo', prayers: ['Uma Oração Para Manter o Foco'] });
-    expect(monday.sections[0].isBaseSlot).toBe(true);
     expect(seed.base.prayers).toContain('Bênção dos alimentos');
     expect(sunday.sections.at(-1).prayers).toContain('Bênção dos alimentos');
   });
