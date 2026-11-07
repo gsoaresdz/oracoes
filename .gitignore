@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+test-results
+playwright-report
+.vercel
+.DS_Store
+data/notion-raw.json
+.claude/settings.local.json

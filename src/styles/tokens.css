@@ -1,0 +1,30 @@
+/* Mesma família visual do Terço Guiado. */
+:root {
+  --bg: #EBEFF5;
+  --surface: #F8F9FC;
+  --ink: #18203A;
+  --muted: #5A6480;
+  --line: #C9D0DF;
+  --marian: #2C4F96;
+  --marian-soft: #DCE4F3;
+  --gold: #8F6518;
+  --gold-soft: rgba(180, 131, 42, .22);
+  --on-marian: #FFFFFF;
+  --danger: #A33228;
+  --f-display: "Marcellus", "Trajan Pro", Georgia, serif;
+  --f-text: "Alegreya", Georgia, "Times New Roman", serif;
+  --f-ui: "Alegreya Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1221; --surface: #151B2E; --ink: #E6E9F2; --muted: #98A1B8; --line: #2A3351;
+    --marian: #86A6E8; --marian-soft: #1F2A47; --gold: #E5B65A; --gold-soft: rgba(229, 182, 90, .22);
+    --on-marian: #0D1221; --danger: #F0897E; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1221; --surface: #151B2E; --ink: #E6E9F2; --muted: #98A1B8; --line: #2A3351;
+  --marian: #86A6E8; --marian-soft: #1F2A47; --gold: #E5B65A; --gold-soft: rgba(229, 182, 90, .22);
+  --on-marian: #0D1221; --danger: #F0897E; color-scheme: dark;
+}
