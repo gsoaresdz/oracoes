@@ -196,9 +196,13 @@ function PrayerFormFields({ id }: { id?: string }) {
         <legend>Onde esta oração entra</legend>
         {routines.map((routine) => {
           const sections = routine.sections.filter((s) => !s.is_base_slot);
+          const chosen = sections.filter((s) => placed.has(s.id));
           return (
-            <div key={routine.id} className="placement-row">
-              <span className="placement-name">{routine.is_base ? 'Base (todos os dias)' : routine.name}</span>
+            <details key={routine.id} className="placement-row" open={routine.is_base || chosen.length > 0 ? true : undefined}>
+              <summary>
+                <span className="placement-name">{routine.is_base ? 'Base (todos os dias)' : routine.name}</span>
+                {chosen.length > 0 && <span className="pill">{chosen.length} {chosen.length === 1 ? 'seção' : 'seções'}</span>}
+              </summary>
               <div className="chips wrap">
                 {sections.map((section) => (
                   <button
@@ -213,7 +217,7 @@ function PrayerFormFields({ id }: { id?: string }) {
                 ))}
                 {!sections.length && <span className="muted small-text">Sem seções ainda</span>}
               </div>
-            </div>
+            </details>
           );
         })}
       </fieldset>

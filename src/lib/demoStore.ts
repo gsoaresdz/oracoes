@@ -3,7 +3,8 @@
 import seed from '../../data/seed.json';
 import { UserError, type AppData, type Item, type Prayer, type Routine, type Section, type Store } from './types';
 
-const KEY = 'oracoes-demo-data';
+// A chave muda quando o seed muda, para o navegador não continuar com dados antigos.
+const KEY = `oracoes-demo-data-${seed.prayers.length}-${seed.routines.length}`;
 const SESSION = 'oracoes-demo-session';
 export const DEMO_EMAIL = 'demo@oracoes.local';
 export const DEMO_PASSWORD = 'demo';
