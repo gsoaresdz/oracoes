@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useData } from '../lib/data';
+import { setPauseEnabled, usePauseEnabled } from '../lib/pause';
 import { applyTheme, readTheme, THEME_LABEL, type Theme } from '../lib/theme';
 
 const NEXT_THEME: Record<Theme, Theme> = { auto: 'light', light: 'dark', dark: 'auto' };
@@ -8,6 +9,7 @@ const NEXT_THEME: Record<Theme, Theme> = { auto: 'light', light: 'dark', dark: '
 export function Layout() {
   const { store, email, prayers, routines } = useData();
   const [theme, setTheme] = useState<Theme>(readTheme);
+  const pauseEnabled = usePauseEnabled();
 
   const exportBackup = () => {
     const payload = JSON.stringify({ exportedAt: new Date().toISOString(), prayers, routines }, null, 2);
@@ -41,6 +43,9 @@ export function Layout() {
               }}
             >
               {THEME_LABEL[theme]}
+            </button>
+            <button type="button" onClick={() => setPauseEnabled(!pauseEnabled)}>
+              {pauseEnabled ? 'Pausa entre orações: ligada' : 'Pausa entre orações: desligada'}
             </button>
             <button type="button" onClick={exportBackup}>Exportar backup (JSON)</button>
             <button type="button" onClick={() => store.signOut()}>Sair</button>
