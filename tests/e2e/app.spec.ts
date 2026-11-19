@@ -361,6 +361,28 @@ test.describe('pausa entre orações', () => {
     await expect(lastOfSection).toHaveAttribute('open', '');
   });
 
+  test('com todas abertas, fechar uma vela a próxima por 5 segundos', async ({ page }) => {
+    await login(page, MONDAY, { liveClock: true });
+    await page.getByRole('button', { name: 'Abrir todas' }).click();
+    const [first, second] = [prayers(page).nth(0), prayers(page).nth(1)];
+    await first.locator('summary').click();
+    await expect(first).not.toHaveAttribute('open');
+
+    await expect(second).toHaveAttribute('open', '');
+    await expect(second.locator('.pause-count')).toHaveText('5');
+    await expect(second.locator('.prayer-content')).toHaveClass(/veiled/);
+    // Não dá para pular fechando a próxima durante a pausa.
+    await second.locator('summary').click({ force: true });
+    await expect(second).toHaveAttribute('open', '');
+
+    await page.clock.runFor(5500);
+    await expect(second.locator('.prayer-content')).not.toHaveClass(/veiled/);
+    await expect(second.locator('.pause-timer')).toHaveCount(0);
+    await second.locator('summary').click();
+    await expect(second).not.toHaveAttribute('open');
+    await expect(prayers(page).nth(2).locator('.prayer-content')).toHaveClass(/veiled/);
+  });
+
   test('recolher todas não inicia a pausa', async ({ page }) => {
     await login(page, MONDAY, { liveClock: true });
     await page.getByRole('button', { name: 'Abrir todas' }).click();

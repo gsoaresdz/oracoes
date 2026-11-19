@@ -11,21 +11,22 @@ interface PrayerCardProps {
   lockedUntil?: number | null;
   /** Chamado quando a pessoa fecha a oração com um toque (não pelo "Recolher todas"). */
   onUserClose?: () => void;
-  /** Chamado quando a pausa desta oração não vale mais (acabou ou ela foi aberta por outro meio). */
+  /** Chamado quando a pausa desta oração acaba. */
   onUnlock?: () => void;
 }
 
 export function PrayerCard({ prayer, allOpen, lockedUntil = null, onUserClose, onUnlock }: PrayerCardProps) {
   const [open, setOpen] = useState(allOpen.open);
   useEffect(() => setOpen(allOpen.open), [allOpen]);
-  const left = useCountdown(open ? null : lockedUntil);
+  const left = useCountdown(lockedUntil);
   const locked = left > 0;
 
   useEffect(() => {
-    if (lockedUntil && (open || left === 0)) onUnlock?.();
-  }, [lockedUntil, open, left, onUnlock]);
+    if (lockedUntil && left === 0) onUnlock?.();
+  }, [lockedUntil, left, onUnlock]);
 
   // O toque (ou Enter/Espaço no teclado) chega aqui antes de o <details> mudar.
+  // Em pausa, não abre nem fecha: quem abriu todas também não pula a próxima.
   const onSummaryClick = (e: MouseEvent) => {
     if (locked) {
       e.preventDefault();
@@ -61,7 +62,8 @@ export function PrayerCard({ prayer, allOpen, lockedUntil = null, onUserClose, o
         )}
       </summary>
       {open && (
-        <div className="prayer-content">
+        // Aberta e em pausa (quem abre todas e vai fechando): o texto fica velado até a pausa acabar.
+        <div className={locked ? 'prayer-content veiled' : 'prayer-content'} aria-hidden={locked || undefined}>
           <Markdown source={prayer.body} />
           <Link className="link-btn small" to={`/oracoes/${prayer.id}`}>Editar oração</Link>
         </div>
