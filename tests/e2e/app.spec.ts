@@ -5,8 +5,10 @@ const SUNDAY = new Date('2026-11-08T12:00:00-03:00');
 const MONDAY = new Date('2026-11-09T12:00:00-03:00');
 const SATURDAY = new Date('2026-11-07T12:00:00-03:00');
 
-async function login(page: Page, date = SUNDAY) {
-  await page.clock.setFixedTime(date);
+async function login(page: Page, date = SUNDAY, { liveClock = false } = {}) {
+  // Relógio fixo para escolher o dia; "vivo" quando o teste precisa avançar o tempo.
+  if (liveClock) await page.clock.install({ time: date });
+  else await page.clock.setFixedTime(date);
   await page.goto('/');
   await page.getByLabel('E-mail').fill('demo@oracoes.local');
   await page.getByLabel('Senha').fill('demo');
@@ -316,4 +318,115 @@ test('sair volta para o login', async ({ page }) => {
   await page.locator('.menu summary').click();
   await page.getByRole('button', { name: 'Sair' }).click();
   await expect(page.getByRole('button', { name: 'Entrar' })).toBeVisible();
+});
+
+test.describe('pausa entre orações', () => {
+  const prayers = (page: Page) => page.locator('.prayer');
+
+  test('fechar uma oração trava a próxima por 5 segundos, sem abrir sozinha', async ({ page }) => {
+    await login(page, MONDAY, { liveClock: true });
+    const [first, second, third] = [prayers(page).nth(0), prayers(page).nth(1), prayers(page).nth(2)];
+    await first.locator('summary').click();
+    await expect(first).toHaveAttribute('open', '');
+    await first.locator('summary').click();
+    await expect(first).not.toHaveAttribute('open');
+
+    await expect(second.locator('.pause-count')).toHaveText('5');
+    await expect(second.locator('summary')).toHaveAttribute('aria-disabled', 'true');
+    await expect(third.locator('.pause-timer')).toHaveCount(0);
+    // Toque e teclado não abrem durante a pausa.
+    await second.locator('summary').click({ force: true });
+    await second.locator('summary').press('Enter');
+    await expect(second).not.toHaveAttribute('open');
+
+    await page.clock.runFor(2000);
+    await expect(second.locator('.pause-count')).toHaveText(/^[1-3]$/);
+    await page.clock.runFor(3500);
+    await expect(second.locator('.pause-timer')).toHaveCount(0);
+    await expect(second).not.toHaveAttribute('open');
+    await second.locator('summary').click();
+    await expect(second).toHaveAttribute('open', '');
+    await noOverflow(page);
+  });
+
+  test('a oração fechada pode ser reaberta e a pausa passa para a seção seguinte', async ({ page }) => {
+    await login(page, MONDAY, { liveClock: true });
+    const firstSection = page.locator('.day-section').nth(0);
+    const lastOfSection = firstSection.locator('.prayer').last();
+    const firstOfNext = page.locator('.day-section').nth(1).locator('.prayer').first();
+    await lastOfSection.locator('summary').click();
+    await lastOfSection.locator('summary').click();
+    await expect(firstOfNext.locator('.pause-timer')).toBeVisible();
+    await lastOfSection.locator('summary').click();
+    await expect(lastOfSection).toHaveAttribute('open', '');
+  });
+
+  test('com todas abertas, fechar uma vela a próxima por 5 segundos', async ({ page }) => {
+    await login(page, MONDAY, { liveClock: true });
+    await page.getByRole('button', { name: 'Abrir todas' }).click();
+    const [first, second] = [prayers(page).nth(0), prayers(page).nth(1)];
+    await first.locator('summary').click();
+    await expect(first).not.toHaveAttribute('open');
+
+    await expect(second).toHaveAttribute('open', '');
+    await expect(second.locator('.pause-count')).toHaveText('5');
+    await expect(second.locator('.prayer-content')).toHaveClass(/veiled/);
+    // As seguintes também ficam veladas, mas sem o anel.
+    await expect(prayers(page).nth(2).locator('.prayer-content')).toHaveClass(/veiled/);
+    await expect(prayers(page).last().locator('.prayer-content')).toHaveClass(/veiled/);
+    await expect(page.locator('.pause-timer')).toHaveCount(1);
+    await expect(first.locator('.pause-timer')).toHaveCount(0);
+    // Não dá para pular fechando a próxima durante a pausa.
+    await second.locator('summary').click({ force: true });
+    await expect(second).toHaveAttribute('open', '');
+
+    await page.clock.runFor(5500);
+    await expect(page.locator('.prayer-content.veiled')).toHaveCount(0);
+    await expect(second.locator('.pause-timer')).toHaveCount(0);
+    await second.locator('summary').click();
+    await expect(second).not.toHaveAttribute('open');
+    await expect(prayers(page).nth(2).locator('.prayer-content')).toHaveClass(/veiled/);
+  });
+
+  test('"Amém, próxima" no fim da oração fecha e inicia a pausa', async ({ page }) => {
+    await login(page, MONDAY, { liveClock: true });
+    const [first, second] = [prayers(page).nth(0), prayers(page).nth(1)];
+    await first.locator('summary').click();
+    await first.getByRole('button', { name: 'Amém, próxima' }).click();
+    await expect(first).not.toHaveAttribute('open');
+    await expect(second.locator('.pause-count')).toHaveText('5');
+    await page.clock.runFor(5500);
+    await second.locator('summary').click();
+    await expect(second.getByRole('button', { name: 'Amém, próxima' })).toBeEnabled();
+  });
+
+  test('a última oração do dia mostra só "Amém" e não inicia pausa', async ({ page }) => {
+    await login(page, MONDAY, { liveClock: true });
+    const last = prayers(page).last();
+    await last.locator('summary').click();
+    await last.getByRole('button', { name: 'Amém', exact: true }).click();
+    await expect(last).not.toHaveAttribute('open');
+    await expect(page.locator('.pause-timer')).toHaveCount(0);
+  });
+
+  test('recolher todas não inicia a pausa', async ({ page }) => {
+    await login(page, MONDAY, { liveClock: true });
+    await page.getByRole('button', { name: 'Abrir todas' }).click();
+    await page.getByRole('button', { name: 'Recolher todas' }).click();
+    await expect(page.locator('.pause-timer')).toHaveCount(0);
+  });
+
+  test('pode ser desligada no menu e a escolha fica salva', async ({ page }) => {
+    await login(page, MONDAY, { liveClock: true });
+    await page.locator('.menu summary').click();
+    await page.getByRole('button', { name: 'Pausa entre orações: ligada' }).click();
+    await expect(page.getByRole('button', { name: 'Pausa entre orações: desligada' })).toBeVisible();
+    await page.reload();
+    const [first, second] = [prayers(page).nth(0), prayers(page).nth(1)];
+    await first.locator('summary').click();
+    await first.locator('summary').click();
+    await expect(page.locator('.pause-timer')).toHaveCount(0);
+    await second.locator('summary').click();
+    await expect(second).toHaveAttribute('open', '');
+  });
 });
