@@ -371,16 +371,42 @@ test.describe('pausa entre orações', () => {
     await expect(second).toHaveAttribute('open', '');
     await expect(second.locator('.pause-count')).toHaveText('5');
     await expect(second.locator('.prayer-content')).toHaveClass(/veiled/);
+    // As seguintes também ficam veladas, mas sem o anel.
+    await expect(prayers(page).nth(2).locator('.prayer-content')).toHaveClass(/veiled/);
+    await expect(prayers(page).last().locator('.prayer-content')).toHaveClass(/veiled/);
+    await expect(page.locator('.pause-timer')).toHaveCount(1);
+    await expect(first.locator('.pause-timer')).toHaveCount(0);
     // Não dá para pular fechando a próxima durante a pausa.
     await second.locator('summary').click({ force: true });
     await expect(second).toHaveAttribute('open', '');
 
     await page.clock.runFor(5500);
-    await expect(second.locator('.prayer-content')).not.toHaveClass(/veiled/);
+    await expect(page.locator('.prayer-content.veiled')).toHaveCount(0);
     await expect(second.locator('.pause-timer')).toHaveCount(0);
     await second.locator('summary').click();
     await expect(second).not.toHaveAttribute('open');
     await expect(prayers(page).nth(2).locator('.prayer-content')).toHaveClass(/veiled/);
+  });
+
+  test('"Amém, próxima" no fim da oração fecha e inicia a pausa', async ({ page }) => {
+    await login(page, MONDAY, { liveClock: true });
+    const [first, second] = [prayers(page).nth(0), prayers(page).nth(1)];
+    await first.locator('summary').click();
+    await first.getByRole('button', { name: 'Amém, próxima' }).click();
+    await expect(first).not.toHaveAttribute('open');
+    await expect(second.locator('.pause-count')).toHaveText('5');
+    await page.clock.runFor(5500);
+    await second.locator('summary').click();
+    await expect(second.getByRole('button', { name: 'Amém, próxima' })).toBeEnabled();
+  });
+
+  test('a última oração do dia mostra só "Amém" e não inicia pausa', async ({ page }) => {
+    await login(page, MONDAY, { liveClock: true });
+    const last = prayers(page).last();
+    await last.locator('summary').click();
+    await last.getByRole('button', { name: 'Amém', exact: true }).click();
+    await expect(last).not.toHaveAttribute('open');
+    await expect(page.locator('.pause-timer')).toHaveCount(0);
   });
 
   test('recolher todas não inicia a pausa', async ({ page }) => {

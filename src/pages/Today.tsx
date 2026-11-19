@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { DayChips } from '../components/DayChips';
-import { PrayerCard } from '../components/PrayerCard';
+import { PrayerCard, type CardPause } from '../components/PrayerCard';
 import { useAction, useData } from '../lib/data';
-import { PAUSE_MS, usePauseEnabled } from '../lib/pause';
+import { PAUSE_MS, useCountdown, usePauseEnabled } from '../lib/pause';
 import { baseRoutine, DAY_IN_SENTENCE, DAY_NAMES, nextPosition, routineForDay } from '../lib/routines';
 import type { Section } from '../lib/types';
 
@@ -17,12 +17,12 @@ interface SectionViewProps {
   section: Section;
   fromBase?: boolean;
   allOpen: { open: boolean; version: number };
-  pause: Pause | null;
+  pauseFor: (itemId: string) => CardPause | null;
+  isLast: (itemId: string) => boolean;
   onUserClose: (itemId: string) => void;
-  onUnlock: (itemId: string) => void;
 }
 
-function SectionView({ section, fromBase, allOpen, pause, onUserClose, onUnlock }: SectionViewProps) {
+function SectionView({ section, fromBase, allOpen, pauseFor, isLast, onUserClose }: SectionViewProps) {
   const { prayers } = useData();
   const byId = useMemo(() => new Map(prayers.map((p) => [p.id, p])), [prayers]);
   return (
@@ -40,9 +40,9 @@ function SectionView({ section, fromBase, allOpen, pause, onUserClose, onUnlock 
                 key={item.id}
                 prayer={prayer}
                 allOpen={allOpen}
-                lockedUntil={pause?.itemId === item.id ? pause.until : null}
+                pause={pauseFor(item.id)}
+                isLast={isLast(item.id)}
                 onUserClose={() => onUserClose(item.id)}
-                onUnlock={() => onUnlock(item.id)}
               />
             ) : null;
           })}
@@ -77,12 +77,28 @@ export function Today() {
     : baseSections;
   const prayerIds = new Set(prayers.map((p) => p.id));
   const order = sectionsOnScreen.flatMap((s) => s.items.filter((i) => prayerIds.has(i.prayer_id)).map((i) => i.id));
+  const position = new Map(order.map((id, i) => [id, i]));
+  // Um só contador para a página: todos os cartões em pausa mostram o mesmo tempo.
+  const active = pauseEnabled ? pause : null;
+  const left = useCountdown(active?.until ?? null);
+  useEffect(() => {
+    if (pause && left === 0) setPause(null);
+  }, [pause, left]);
+
   const onUserClose = (itemId: string) => {
-    const next = order[order.indexOf(itemId) + 1];
+    const next = order[(position.get(itemId) ?? -1) + 1];
     if (pauseEnabled && next) setPause({ itemId: next, until: Date.now() + PAUSE_MS });
   };
-  const onUnlock = (itemId: string) => setPause((p) => (p?.itemId === itemId ? null : p));
-  const pauseProps = { pause: pauseEnabled ? pause : null, onUserClose, onUnlock };
+  // A próxima fica travada; as seguintes, só veladas, para o olho não correr adiante.
+  const pauseFor = (itemId: string): CardPause | null => {
+    if (!active || left === 0) return null;
+    const start = position.get(active.itemId);
+    const here = position.get(itemId);
+    if (start === undefined || here === undefined || here < start) return null;
+    return { role: here === start ? 'next' : 'after', left, until: active.until };
+  };
+  const isLast = (itemId: string) => position.get(itemId) === order.length - 1;
+  const pauseProps = { pauseFor, isLast, onUserClose };
 
   const createDay = async () => {
     let id = '';

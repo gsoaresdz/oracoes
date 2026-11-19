@@ -46,13 +46,15 @@ export function secondsLeft(until: number, now = Date.now()): number {
 }
 
 export function useCountdown(until: number | null): number {
-  // O estado só força o redesenho; o valor vem sempre do relógio, no próprio render.
-  const [, setTick] = useState(0);
+  // O estado só força o redesenho quando o segundo muda (React ignora valor igual);
+  // o valor devolvido vem sempre do relógio, no próprio render.
+  const [, setShown] = useState(0);
   useEffect(() => {
     if (!until) return;
     const tick = () => {
-      setTick((n) => n + 1);
-      if (secondsLeft(until) === 0) stop();
+      const s = secondsLeft(until);
+      setShown(s);
+      if (s === 0) stop();
     };
     const id = window.setInterval(tick, 200);
     const stop = () => {
