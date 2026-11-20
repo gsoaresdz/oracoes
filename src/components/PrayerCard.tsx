@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { PAUSE_MS } from '../lib/pause';
 import type { Prayer } from '../lib/types';
 import { Markdown } from './Markdown';
 
@@ -10,6 +9,8 @@ export interface CardPause {
   role: 'next' | 'after';
   left: number;
   until: number;
+  /** Duração total da pausa, em ms. */
+  total: number;
 }
 
 interface PrayerCardProps {
@@ -56,7 +57,7 @@ export function PrayerCard({ prayer, allOpen, pause = null, isLast = false, onUs
 
   // Atraso negativo: se o cartão for remontado no meio da pausa, o anel continua de onde estava.
   const ringStyle = pause
-    ? ({ '--pause-ms': `${PAUSE_MS}ms`, animationDelay: `${Math.min(0, pause.until - PAUSE_MS - Date.now())}ms` } as CSSProperties)
+    ? ({ '--pause-ms': `${pause.total}ms`, animationDelay: `${Math.min(0, pause.until - pause.total - Date.now())}ms` } as CSSProperties)
     : undefined;
 
   return (

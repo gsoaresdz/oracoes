@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { DayChips } from '../components/DayChips';
 import { PrayerCard, type CardPause } from '../components/PrayerCard';
 import { useAction, useData } from '../lib/data';
-import { PAUSE_MS, useCountdown, usePauseEnabled } from '../lib/pause';
+import { useCountdown, usePauseEnabled, usePauseSeconds } from '../lib/pause';
 import { baseRoutine, DAY_IN_SENTENCE, DAY_NAMES, nextPosition, routineForDay } from '../lib/routines';
 import type { Section } from '../lib/types';
 
@@ -11,6 +11,8 @@ interface Pause {
   /** Item que fica em pausa (o seguinte ao que foi fechado). */
   itemId: string;
   until: number;
+  /** Duração desta pausa em ms (mudar a configuração no meio não altera a pausa em curso). */
+  total: number;
 }
 
 interface SectionViewProps {
@@ -70,6 +72,7 @@ export function Today() {
   const toggleAll = () => setAllOpen((s) => ({ open: !s.open, version: s.version + 1 }));
 
   const pauseEnabled = usePauseEnabled();
+  const pauseSeconds = usePauseSeconds();
   const [pause, setPause] = useState<Pause | null>(null);
   // Ordem em que as orações aparecem na tela, para saber qual é a "próxima".
   const sectionsOnScreen = routine
@@ -80,14 +83,17 @@ export function Today() {
   const position = new Map(order.map((id, i) => [id, i]));
   // Um só contador para a página: todos os cartões em pausa mostram o mesmo tempo.
   const active = pauseEnabled ? pause : null;
-  const left = useCountdown(active?.until ?? null);
+  const left = useCountdown(active?.until ?? null, active?.total);
   useEffect(() => {
     if (pause && left === 0) setPause(null);
   }, [pause, left]);
 
   const onUserClose = (itemId: string) => {
     const next = order[(position.get(itemId) ?? -1) + 1];
-    if (pauseEnabled && next) setPause({ itemId: next, until: Date.now() + PAUSE_MS });
+    if (pauseEnabled && next) {
+      const total = pauseSeconds * 1000;
+      setPause({ itemId: next, until: Date.now() + total, total });
+    }
   };
   // A próxima fica travada; as seguintes, só veladas, para o olho não correr adiante.
   const pauseFor = (itemId: string): CardPause | null => {
@@ -95,7 +101,7 @@ export function Today() {
     const start = position.get(active.itemId);
     const here = position.get(itemId);
     if (start === undefined || here === undefined || here < start) return null;
-    return { role: here === start ? 'next' : 'after', left, until: active.until };
+    return { role: here === start ? 'next' : 'after', left, until: active.until, total: active.total };
   };
   const isLast = (itemId: string) => position.get(itemId) === order.length - 1;
   const pauseProps = { pauseFor, isLast, onUserClose };
