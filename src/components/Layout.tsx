@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useData } from '../lib/data';
-import { setPauseEnabled, usePauseEnabled } from '../lib/pause';
+import {
+  PAUSE_SECONDS_OPTIONS,
+  setPauseEnabled,
+  setPauseSeconds,
+  usePauseEnabled,
+  usePauseSeconds,
+} from '../lib/pause';
 import { applyTheme, readTheme, THEME_LABEL, type Theme } from '../lib/theme';
 
 const NEXT_THEME: Record<Theme, Theme> = { auto: 'light', light: 'dark', dark: 'auto' };
@@ -10,6 +16,7 @@ export function Layout() {
   const { store, email, prayers, routines } = useData();
   const [theme, setTheme] = useState<Theme>(readTheme);
   const pauseEnabled = usePauseEnabled();
+  const pauseSeconds = usePauseSeconds();
 
   const exportBackup = () => {
     const payload = JSON.stringify({ exportedAt: new Date().toISOString(), prayers, routines }, null, 2);
@@ -47,6 +54,20 @@ export function Layout() {
             <button type="button" onClick={() => setPauseEnabled(!pauseEnabled)}>
               {pauseEnabled ? 'Pausa entre orações: ligada' : 'Pausa entre orações: desligada'}
             </button>
+            <label className="menu-field">
+              <span>Duração da pausa</span>
+              <select
+                value={pauseSeconds}
+                disabled={!pauseEnabled}
+                onChange={(e) => setPauseSeconds(Number(e.target.value))}
+              >
+                {PAUSE_SECONDS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s === 1 ? '1 segundo' : `${s} segundos`}
+                  </option>
+                ))}
+              </select>
+            </label>
             <button type="button" onClick={exportBackup}>Exportar backup (JSON)</button>
             <button type="button" onClick={() => store.signOut()}>Sair</button>
           </div>

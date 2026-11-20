@@ -429,4 +429,50 @@ test.describe('pausa entre orações', () => {
     await second.locator('summary').click();
     await expect(second).toHaveAttribute('open', '');
   });
+
+  test('a duração pode ser escolhida no menu (1 a 30 s) e fica salva', async ({ page }) => {
+    await login(page, MONDAY, { liveClock: true });
+    await page.locator('.menu summary').click();
+    const duration = page.getByLabel('Duração da pausa');
+    await expect(duration).toHaveValue('5');
+    await expect(duration.locator('option')).toHaveCount(30);
+    await duration.selectOption('12');
+    await page.reload();
+    await page.locator('.menu summary').click();
+    await expect(page.getByLabel('Duração da pausa')).toHaveValue('12');
+    await page.locator('.menu summary').click();
+
+    const [first, second] = [prayers(page).nth(0), prayers(page).nth(1)];
+    await first.locator('summary').click();
+    await first.locator('summary').click();
+    await expect(second.locator('.pause-count')).toHaveText('12');
+    await page.clock.runFor(6000);
+    await expect(second.locator('.pause-count')).toHaveText(/^[5-7]$/);
+    await expect(second.locator('summary')).toHaveAttribute('aria-disabled', 'true');
+    await page.clock.runFor(6500);
+    await expect(second.locator('.pause-timer')).toHaveCount(0);
+    await second.locator('summary').click();
+    await expect(second).toHaveAttribute('open', '');
+  });
+
+  test('com 1 segundo a pausa é curta', async ({ page }) => {
+    await login(page, MONDAY, { liveClock: true });
+    await page.locator('.menu summary').click();
+    await page.getByLabel('Duração da pausa').selectOption('1');
+    await page.locator('.menu summary').click();
+    const [first, second] = [prayers(page).nth(0), prayers(page).nth(1)];
+    await first.locator('summary').click();
+    await first.locator('summary').click();
+    await expect(second.locator('.pause-count')).toHaveText('1');
+    await page.clock.runFor(1500);
+    await expect(second.locator('.pause-timer')).toHaveCount(0);
+  });
+
+  test('o seletor de duração fica desativado com a pausa desligada', async ({ page }) => {
+    await login(page, MONDAY, { liveClock: true });
+    await page.locator('.menu summary').click();
+    await expect(page.getByLabel('Duração da pausa')).toBeEnabled();
+    await page.getByRole('button', { name: 'Pausa entre orações: ligada' }).click();
+    await expect(page.getByLabel('Duração da pausa')).toBeDisabled();
+  });
 });

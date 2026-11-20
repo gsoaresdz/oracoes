@@ -53,6 +53,10 @@ textarea { font-family: var(--f-text); font-size: 1.08rem; line-height: 1.55; re
 .menu-panel span { padding: 2px 8px 8px; overflow-wrap: anywhere; }
 .menu-panel button { text-align: left; background: none; border: 0; padding: 10px 8px; border-radius: 8px; }
 .menu-panel button:hover { background: var(--marian-soft); }
+.menu-field { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 8px 6px; }
+.menu-panel .menu-field span { padding: 0; }
+.menu-field select { width: auto; padding: 6px 8px; }
+.menu-field select:disabled { opacity: .5; }
 .demo-banner { font-size: .85rem; color: var(--muted); background: var(--gold-soft); padding: 6px 12px; border-radius: 8px; }
 
 /* Cabeçalho da página */
